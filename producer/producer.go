@@ -3,6 +3,7 @@ package producer
 import (
 	"context"
 	"github.com/segmentio/kafka-go"
+	"sync"
 	"time"
 )
 
@@ -13,7 +14,7 @@ type Producer interface {
 
 type kafkaProducer struct {
 	*kafka.Writer
-	stop bool
+	once sync.Once
 }
 
 func CreateKafkaProducer(brokerList []string, topic string) Producer {
@@ -35,12 +36,11 @@ func (k *kafkaProducer) Publish(ctx context.Context, key, value []byte) error {
 	return k.WriteMessages(ctx, kafka.Message{Key: key, Value: value})
 }
 
-func (k *kafkaProducer) Close() error {
-	if k.stop == false {
-		k.stop = true
-		return k.Writer.Close()
-	}
-	return nil
+func (k *kafkaProducer) Close() (err error) {
+	k.once.Do(func() {
+		err = k.Writer.Close()
+	})
+	return
 }
 
 func connectionTest(brokerList []string) {
