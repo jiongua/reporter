@@ -2,14 +2,16 @@ package reporter
 
 import (
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"log"
+	"net/http"
 	"reporter/producer"
 )
 
 type DataSource struct {
-	Topic string `json:"topic"`
-	Content []byte
+	Topic string `form:"topic" binding:"required"`
+	Content []byte 	`form:"content" binding:"required"`
 }
 
 type DataCollectionServer struct {
@@ -33,7 +35,7 @@ func (d *DataCollectionServer)PublishMessage(ctx context.Context) {
 	for {
 		select {
 		case data := <-d.dataChan:
-			log.Printf("get new data: %v", data)
+			log.Println("get new data...")
 			d.Producer.Publish(ctx, nil, data.Content)
 		case <-ctx.Done():
 			log.Println(ctx.Err().Error())
@@ -43,11 +45,19 @@ func (d *DataCollectionServer)PublishMessage(ctx context.Context) {
 }
 
 func (d *DataCollectionServer)DoRequest(c *gin.Context) {
-	var b = DataSource{
-		Topic:   "test001",
-		Content: []byte("message a"),
+	var b DataSource
+	err := c.ShouldBind(&b)
+	if err != nil {
+		log.Println(err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
-	//c.ShouldBind(&b)
+	if b.Topic != "user_action_collection" {
+		log.Printf("invalid topic: %s\n", b.Topic)
+		c.JSON(http.StatusBadRequest, gin.H{"message": fmt.Sprintf("bad topic <%s>, want <user_action_collection>", b.Topic)})
+		return
+	}
+	//may send to kafka directly
 	d.dataChan <- b
 	c.JSON(200, gin.H{"message": "ok"})
 }

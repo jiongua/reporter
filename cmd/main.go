@@ -14,7 +14,7 @@ import (
 func main() {
 	router := gin.New()
 
-	kafkaProducer := producer.CreateKafkaProducer([]string{"192.168.3.101:32775"}, "user_action_collection")
+	kafkaProducer := producer.CreateKafkaProducer([]string{"192.168.3.101:32769", "192.168.3.101:32768"}, "user_action_collection")
 	log.Println("connect kafka ok")
 	s := reporter.NewDataCollectionServer(kafkaProducer)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -33,7 +33,7 @@ func main() {
 	done := make(chan struct{})
 
 	go func() {
-		if err := router.Run(":8081"); err != nil {
+		if err := router.Run(":8082"); err != nil {
 			log.Println(err.Error())
 			done<- struct {}{}
 		}
